@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Моя Бібліотека</title> 
+    <style>
+        /* === Стилізація сторінки === */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh; 
+            background-color: #f4f4f9; /* Світлий фон */
+        }
+
+        /* Стиль для шапки та підвалу */
+        header, footer { 
+            background: #2c3e50; 
+            color: #fff; 
+            text-align: center; 
+            padding: 1rem; 
+        }
+
+        /* Основний контейнер по центру */
+        main { 
+            flex: 1; 
+            padding: 2em; 
+            max-width: 600px; 
+            margin: auto; 
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+
+        /* Стиль форми додавання */
+        form { display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        input { 
+            flex: 1; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+        }
+
+        /* Кнопка додавання (зелена) */
+        button[type="submit"] {
+            padding: 10px 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        ul { list-style: none; padding: 0; }
+
+        /* Стиль кожного рядка (книги) */
+        li { 
+            border-bottom: 1px solid #eee; 
+            padding: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        /* Кнопка видалення (червона) */
+        .delete-btn { 
+            background-color: #e74c3c; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📚 Моя Бібліотека</h1>
+        <p>Список книг для прочитання</p>
+    </header>
+
+    <main>
+        <form id="addForm">
+            <input type="text" id="itemInput" placeholder="Введіть назву книги..." required>
+            <button type="submit">Додати книгу</button>
+        </form>
+
+        <ul id="itemsList"></ul>
+    </main>
+
+    <footer>
+        <p>© 2025 Library App Project</p>
+    </footer>
+
+    <script>
+        // Адреса нашого Backend API (порт 3000)
+        const API = "http://localhost:3000/api/items";
+        
+        // Отримуємо елементи зі сторінки для роботи з ними
+        const list = document.getElementById('itemsList');
+        const form = document.getElementById('addForm');
+        const input = document.getElementById('itemInput');
+
+        // --- Функція: Завантаження списку (READ) ---
+        async function loadItems() {
+            list.innerHTML = ""; // Очищаємо список перед оновленням
+            
+            // Робимо запит на сервер
+            const res = await fetch(API);
+            const items = await res.json(); // Перетворюємо відповідь у JSON
+            
+            // Для кожного елемента масиву викликаємо функцію малювання
+            items.forEach(item => addItemToDOM(item));
+        }
+
+        // --- Функція: Відображення елемента на сторінці ---
+        function addItemToDOM(item) {
+            const li = document.createElement('li');
+            
+            // Формуємо HTML для одного рядка
+            // onblur="updateItem..." викликається, коли ми закінчили редагувати текст
+            li.innerHTML = `
+                <span contenteditable="true" onblur="updateItem(${item.id}, this.innerText)">
+                    ${item.text || ''}
+                </span>
+                <div class="actions">
+                    <button class="delete-btn" onclick="deleteItem(${item.id})">Видалити</button>
+                </div>
+            `;
+            list.appendChild(li);
+        }
+
+        // --- Подія: Додавання нового запису (CREATE) ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Зупиняємо стандартне перезавантаження сторінки
+            
+            const text = input.value.trim();
+            if (!text) return; // Якщо поле порожнє, нічого не робимо
+
+            // Відправляємо POST запит на сервер
+            const res = await fetch(API, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text }) // Відправляємо об'єкт { text: "Назва книги" }
+            });
+
+            const newItem = await res.json(); // Отримуємо створений об'єкт від сервера
+            addItemToDOM(newItem); // Додаємо його на екран
+            input.value = ""; // Очищаємо поле вводу
+        });
+
+        // --- Функція: Оновлення запису (UPDATE) ---
+        async function updateItem(id, text) {
+            // Відправляємо PUT запит з новим текстом
+            await fetch(`${API}/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
+            });
+            console.log(`Книга з ID ${id} оновлена`);
+        }
+
+        // --- Функція: Видалення запису (DELETE) ---
+        async function deleteItem(id) {
+            if(confirm("Ви впевнені, що хочете видалити цю книгу?")) {
+                await fetch(`${API}/${id}`, { method: "DELETE" });
+                loadItems(); // Перезавантажуємо список після видалення
+            }
+        }
+
+        // Запуск функції при завантаженні сторінки
+        loadItems();
+    </script>
+</body>
+</html>
